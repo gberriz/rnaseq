@@ -209,6 +209,18 @@ to_counts_dataframe <- function (counts_matrix) {
 
 ## ----------------------------------------------------------------------------
 
+import <- function (
+                    environment_,
+                    wanted,
+                    target = parent.frame()
+                   ) {
+
+  list2env(as.list(environment_)[wanted], envir = target)
+
+}
+
+## ----------------------------------------------------------------------------
+
 voom_usecase <- function () {
 
   set.seed(1)
@@ -257,8 +269,9 @@ voom_usecase <- function () {
 
   ## --------------------------------------------------------------------------
 
-  get_counts(fold_changes, expected_library_sizes)
+  all_counts <- get_counts(fold_changes, expected_library_sizes)
 
+  environment()
 }
 
 ## ----------------------------------------------------------------------------
@@ -331,14 +344,19 @@ mh_usecase <- function () {
 
   ## --------------------------------------------------------------------------
 
-  get_counts(fold_changes, expected_library_sizes)
+  all_counts <- get_counts(fold_changes, expected_library_sizes)
 
+  environment()
 }
 
 ## ----------------------------------------------------------------------------
 
 main <- function () {
-  all_counts <- mh_usecase()
+
+  import(mh_usecase(),
+         c("all_counts",
+           "fold_changes",
+           "expected_library_sizes"))
 
   counts <-
   get_filtered_counts(all_counts, counts_threshold = 10)
