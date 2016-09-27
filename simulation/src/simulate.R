@@ -42,68 +42,9 @@
 
 ## ----------------------------------------------------------------------------
 
-get_counts <- function (number_of_genes,
-                        numbers_of_changed_genes,
-                        number_of_replicates_per_condition) {
+get_counts <- function (profiles, expected_library_sizes) {
 
-  profiles <- local({
-    baseline <- get_baseline(number_of_genes)
-    fold_change <- 2
-    sapply(
-            random_tiles(number_of_genes,
-                         numbers_of_changed_genes),
-            function (tile) {
-              baseline[tile] <- baseline[tile] * fold_change
-              baseline
-            },
-            simplify = FALSE
-          )
-  })
-
-  expected_library_sizes <- local({
-    # the value for expected_number_of_counts_per_gene is derived from the
-    # the values used the voom code
-    expected_number_of_counts_per_gene <- 1100
-
-    expected_library_size <-
-      expected_number_of_counts_per_gene * number_of_genes
-
-    replicate(
-               length(numbers_of_changed_genes),
-               rep(
-                    expected_library_size,
-                    number_of_replicates_per_condition
-                  ),
-               simplify = FALSE
-             )
-  })
-
-  setNames(
-            data.frame(
-                        get_bare_counts(profiles, expected_library_sizes),
-                        row.names = indexed_names("GENE", number_of_genes)
-                      ),
-            indexed_names("SAMPLE",
-                          length(numbers_of_changed_genes) *
-                          number_of_replicates_per_condition)
-          )
-}
-
-## ----------------------------------------------------------------------------
-
-get_bare_counts <- function (profiles, expected_library_sizes) {
-
-  lambda <- do.call(
-                     cbind,
-                     mapply(
-                             function (profile_, sizes) {
-                               as.matrix(profile_) %*% t(as.matrix(sizes))
-                             },
-                             profiles,
-                             expected_library_sizes,
-                             SIMPLIFY = FALSE
-                           )
-                   )
+  lambda <- get_expected_counts(profiles, expected_library_sizes)
 
   number_of_genes <- nrow(lambda)
   number_of_samples <- ncol(lambda)
@@ -140,6 +81,7 @@ get_bare_counts <- function (profiles, expected_library_sizes) {
 
   shape <- 1 / phi
   ## dim(shape) == c(number_of_genes, number_of_samples)
+
   mu <- matrix(
                 rgamma(number_of_genes * number_of_samples,
                        shape = shape,
@@ -150,10 +92,36 @@ get_bare_counts <- function (profiles, expected_library_sizes) {
   ## dim(mu) == c(number_of_genes, number_of_samples)
 
   # technical variation
-  matrix(rpois(number_of_genes * number_of_samples,
-               lambda = mu),
-         number_of_genes,
-         number_of_samples)
+  counts_matrix <- matrix(rpois(number_of_genes * number_of_samples,
+                                lambda = mu),
+                          number_of_genes,
+                          number_of_samples)
+
+  to_counts_dataframe(counts_matrix)
+
+}
+
+## ---------------------------------------------------------------------
+
+get_filtered_counts <- function (all_counts, counts_threshold) {
+  all_counts[rowSums(all_counts) >= counts_threshold, ]
+}
+
+## ----------------------------------------------------------------------------
+
+get_expected_counts <- function (profiles, expected_library_sizes) {
+
+  do.call(
+           cbind,
+           mapply(
+                   function (profile_, sizes) {
+                     as.matrix(profile_) %*% t(as.matrix(sizes))
+                   },
+                   profiles,
+                   expected_library_sizes,
+                   SIMPLIFY = FALSE
+                 )
+         )
 }
 
 ## ---------------------------------------------------------------------
@@ -168,6 +136,8 @@ get_baseline <- local({
     raw / sum(raw)
   }
 })
+
+## ----------------------------------------------------------------------------
 
 tiles <- function (...) {
   tiles_ <- function (start_, arguments) {
@@ -190,6 +160,8 @@ random_tiles <- function (n, lengths) {
         )
 }
 
+## ----------------------------------------------------------------------------
+
 indexed_names <- function (prefix, n) {
   format <- sprintf("%s_%%0%dd", prefix, floor(log10(n)) + 1)
   sapply(1:n, function (i) sprintf(format, i))
@@ -197,7 +169,32 @@ indexed_names <- function (prefix, n) {
 
 ## ----------------------------------------------------------------------------
 
+to_counts_dataframe <- function (counts_matrix) {
+
+  row_names <- local({
+    number_of_genes <- nrow(counts_matrix)
+    indexed_names("GENE", number_of_genes)
+  })
+
+  column_names <- local({
+    number_of_samples <- ncol(counts_matrix)
+    indexed_names("SAMPLE", number_of_samples)
+  })
+
+  setNames(
+            data.frame(counts_matrix, row.names = row_names),
+            column_names
+          )
+
+}
+
+## ----------------------------------------------------------------------------
+
 main <- function () {
+
+  set.seed(1)
+
+  ## --------------------------------------------------------------------------
 
   numbers_of_changed_genes <- c(4, 6)
   number_of_replicates_per_condition <- 3
@@ -209,99 +206,47 @@ main <- function () {
 
   ## --------------------------------------------------------------------------
 
-  set.seed(1)
+  profiles <- local({
+    baseline <- get_baseline(number_of_genes)
+    fold_change <- 2
+    sapply(
+            random_tiles(number_of_genes,
+                         numbers_of_changed_genes),
+            function (tile) {
+              baseline[tile] <- baseline[tile] * fold_change
+              baseline
+            },
+            simplify = FALSE
+          )
+  })
 
-  all_counts <- get_counts(number_of_genes,
-                           numbers_of_changed_genes,
-                           number_of_replicates_per_condition)
+  ## --------------------------------------------------------------------------
+
+  expected_library_sizes <- local({
+    # the value for expected_number_of_counts_per_gene is derived from the
+    # the values used the voom code
+    expected_number_of_counts_per_gene <- 1100
+
+    expected_library_size <-
+      expected_number_of_counts_per_gene * number_of_genes
+
+    replicate(
+               length(numbers_of_changed_genes),
+               rep(
+                    expected_library_size,
+                    number_of_replicates_per_condition
+                  ),
+               simplify = FALSE
+             )
+  })
+
+  ## --------------------------------------------------------------------------
+
+  all_counts <- get_counts(profiles, expected_library_sizes)
+
+  counts <-
+  get_filtered_counts(all_counts, counts_threshold = 10)
 
   browser()
-
-  # Filter
-  counts_threshold <- 10
-  all_counts[rowSums(all_counts) >= counts_threshold, ]
+  counts
 }
-
-main()
-
-################################################################################
-################################################################################
-
-## function () {
-
-##   ## ---------------------------------------------------------------------
-##   # load(url("http://bioinf.wehi.edu.au/voom/qAbundanceDist.RData"))
-##   load("/home/berriz/_/projects/rnaseq/simulation/_scratch/qAbundanceDist.RData")
-
-##   baseline <- local({
-##     raw <- qAbundanceDist((1:number_of_genes)/(number_of_genes + 1))
-##     raw/sum(raw)
-##   })
-
-##   baseline1 <- baseline2 <- baseline
-##   ## browser()
-
-##   local({
-##     fold_change <- 2
-##     baseline1[i_1] <<- baseline1[i_1] * fold_change
-##     baseline2[i_2] <<- baseline2[i_2] * fold_change
-##   })
-
-##   ## ---------------------------------------------------------------------
-
-##   ## number_of_conditions <- 2
-##   ## number_of_replicates_per_condition <- 3
-##   ## number_of_samples <- (number_of_conditions *
-##   ##                       number_of_replicates_per_condition)
-
-##   ## indices_of_changed_genes <- sample(1:number_of_genes,
-##   ##                                    number_of_changed_genes)
-
-##   ## get_baseline_for_condition <- function (condition_index,
-##   ##                                         fold_change) {
-##   ##   start_ <- 1 + (condition_index - 1) * number_of_replicates_per_condition
-##   ##   end_   <- start_ + number_of_replicates_per_condition - 1
-##   ##   baseline_for_condition <- baseline
-##   ##   indices_to_change <- indices_of_changed_genes[start_:end_]
-##   ##   baseline_for_condition[indices_to_change] <-
-##   ##     baseline_for_condition[indices_to_change] * fold_change
-##   ##   baseline_for_condition
-##   ## }
-
-##   ## get_baseline_for_condition(1, fold_change = 2)
-
-##   n1 <- 3
-##   n2 <- 3
-##   number_of_samples <- n1 + n2
-
-##   expected_library_size <- local({
-
-##     # the value for expected_number_of_counts_per_gene is derived from the
-##     # the values used the voom code
-##     expected_number_of_counts_per_gene <- 1100
-
-##     expected_number_of_counts_per_gene * number_of_genes
-
-##   })
-
-##   lambda <- local({
-
-##     # the value for expected_number_of_counts_per_gene is derived from the
-##     # the values used the voom code
-##     expected_number_of_counts_per_gene <- 1100
-
-##     expected_library_size <- rep(expected_number_of_counts_per_gene * number_of_genes,
-##                                  number_of_samples)
-
-##     browser()
-
-##     cbind(
-##       as.matrix(baseline1) %*% t(as.matrix(expected_library_size[1:n1])),
-##       as.matrix(baseline2) %*% t(as.matrix(expected_library_size[(n1 + 1):(n1 + n2)]))
-##     )
-
-##   })
-##   ## dim(lambda) == c(number_of_genes, number_of_samples)
-
-##   counts <- get_counts(lambda)
-## }
