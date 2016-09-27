@@ -101,7 +101,7 @@ get_counts <- function (profiles, expected_library_sizes) {
 
 }
 
-## ---------------------------------------------------------------------
+## ----------------------------------------------------------------------------
 
 get_filtered_counts <- function (all_counts, counts_threshold) {
   all_counts[rowSums(all_counts) >= counts_threshold, ]
@@ -124,7 +124,7 @@ get_expected_counts <- function (profiles, expected_library_sizes) {
          )
 }
 
-## ---------------------------------------------------------------------
+## ----------------------------------------------------------------------------
 
 get_baseline <- local({
 
@@ -190,7 +190,7 @@ to_counts_dataframe <- function (counts_matrix) {
 
 ## ----------------------------------------------------------------------------
 
-main <- function () {
+voom_usecase <- function () {
 
   set.seed(1)
 
@@ -242,11 +242,96 @@ main <- function () {
 
   ## --------------------------------------------------------------------------
 
-  all_counts <- get_counts(profiles, expected_library_sizes)
+  get_counts(profiles, expected_library_sizes)
+
+}
+
+## ----------------------------------------------------------------------------
+
+mh_usecase <- function () {
+
+  set.seed(0)
+
+  ## --------------------------------------------------------------------------
+
+  number_of_genes <- 500
+  expected_number_of_counts_per_gene <- 1000
+  number_of_replicates_per_condition <- 3
+
+  ## --------------------------------------------------------------------------
+
+  profiles <- local({
+
+    make_profile <- function (residues, fold_changes) {
+
+      n <- length(residues)
+
+      stopifnot(length(fold_changes) == n)
+
+      profile <- get_baseline(number_of_genes)
+
+      if (n == 0) return(profile)
+
+      stride <- 20
+      j <- 1:number_of_genes
+      for (i in seq_along(residues)) {
+        k <- which((j %% stride) %in% residues[[i]])
+        profile[k] <- profile[k] * fold_changes[[i]]
+      }
+
+      profile
+    }
+
+    list(
+          make_profile(list(),
+                       list()),
+
+          make_profile(list(c(1, 2, 5), c(3, 7)),
+                       list(         2,     0.5)),
+
+          make_profile(list(c(1, 4),    c(3, 6), c(5)),
+                       list(      2,        0.3,    3))
+        )
+  })
+
+  ## --------------------------------------------------------------------------
+
+  expected_library_sizes <- local({
+
+    expected_library_size <-
+      expected_number_of_counts_per_gene * number_of_genes
+
+    number_of_conditions <- length(profiles)
+
+    replicate(
+               number_of_conditions,
+               rep(
+                    expected_library_size,
+                    number_of_replicates_per_condition
+                  ),
+               simplify = FALSE
+             )
+  })
+
+  ## --------------------------------------------------------------------------
+
+  get_counts(profiles, expected_library_sizes)
+
+}
+
+## ----------------------------------------------------------------------------
+
+main <- function () {
+  all_counts <- mh_usecase()
 
   counts <-
   get_filtered_counts(all_counts, counts_threshold = 10)
 
   browser()
   counts
+
 }
+
+## ----------------------------------------------------------------------------
+
+main()
