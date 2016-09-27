@@ -42,14 +42,15 @@
 
 ## ----------------------------------------------------------------------------
 
-get_counts <- function (profiles, expected_library_sizes) {
+get_counts <- function (fold_changes, expected_library_sizes) {
 
-  lambda <- get_expected_counts(profiles, expected_library_sizes)
+  lambda <- get_expected_counts(fold_changes, expected_library_sizes)
 
   number_of_genes <- nrow(lambda)
   number_of_samples <- ncol(lambda)
 
-  # biological variation
+  ## --------------------------------------------------------------------------
+  ## biological variation
   phi <- local({
 
     ## From the voom paper:
@@ -91,7 +92,8 @@ get_counts <- function (profiles, expected_library_sizes) {
               )
   ## dim(mu) == c(number_of_genes, number_of_samples)
 
-  # technical variation
+  ## --------------------------------------------------------------------------
+  ## technical variation
   counts_matrix <- matrix(rpois(number_of_genes * number_of_samples,
                                 lambda = mu),
                           number_of_genes,
@@ -104,12 +106,14 @@ get_counts <- function (profiles, expected_library_sizes) {
 ## ----------------------------------------------------------------------------
 
 get_filtered_counts <- function (all_counts, counts_threshold) {
+
   all_counts[rowSums(all_counts) >= counts_threshold, ]
+
 }
 
 ## ----------------------------------------------------------------------------
 
-get_expected_counts <- function (profiles, expected_library_sizes) {
+get_expected_counts <- function (fold_changes, expected_library_sizes) {
 
   do.call(
            cbind,
@@ -117,7 +121,7 @@ get_expected_counts <- function (profiles, expected_library_sizes) {
                    function (profile_, sizes) {
                      as.matrix(profile_) %*% t(as.matrix(sizes))
                    },
-                   profiles,
+                   fold_changes_to_profiles(fold_changes),
                    expected_library_sizes,
                    SIMPLIFY = FALSE
                  )
@@ -135,7 +139,22 @@ get_baseline <- local({
     raw <- qAbundanceDist((1:number_of_genes) / (number_of_genes + 1))
     raw / sum(raw)
   }
+
 })
+
+## ----------------------------------------------------------------------------
+
+fold_changes_to_profiles <- function (fold_changes) {
+
+  number_of_genes <- length(fold_changes[[1]])
+  baseline <- get_baseline(number_of_genes)
+
+  sapply(
+          fold_changes,
+          function (fold_change) baseline * fold_change,
+          simplify = FALSE
+        )
+}
 
 ## ----------------------------------------------------------------------------
 
@@ -206,16 +225,12 @@ voom_usecase <- function () {
 
   ## --------------------------------------------------------------------------
 
-  profiles <- local({
-    baseline <- get_baseline(number_of_genes)
+  fold_changes <- local({
+    base <- rep(1, number_of_genes)
     fold_change <- 2
     sapply(
-            random_tiles(number_of_genes,
-                         numbers_of_changed_genes),
-            function (tile) {
-              baseline[tile] <- baseline[tile] * fold_change
-              baseline
-            },
+            random_tiles(number_of_genes, numbers_of_changed_genes),
+            function (tile) `[<-`(base, tile, fold_change),
             simplify = FALSE
           )
   })
@@ -242,7 +257,7 @@ voom_usecase <- function () {
 
   ## --------------------------------------------------------------------------
 
-  get_counts(profiles, expected_library_sizes)
+  get_counts(fold_changes, expected_library_sizes)
 
 }
 
@@ -260,38 +275,39 @@ mh_usecase <- function () {
 
   ## --------------------------------------------------------------------------
 
-  profiles <- local({
+  fold_changes <- local({
 
-    make_profile <- function (residues, fold_changes) {
+    make_fold_change <- function (residues, fold_change_specs) {
 
       n <- length(residues)
 
-      stopifnot(length(fold_changes) == n)
+      stopifnot(length(fold_change_specs) == n)
 
-      profile <- get_baseline(number_of_genes)
+      fold_change <- rep(1, number_of_genes)
 
-      if (n == 0) return(profile)
+      if (n == 0) return(fold_change)
 
       stride <- 20
       j <- 1:number_of_genes
       for (i in seq_along(residues)) {
         k <- which((j %% stride) %in% residues[[i]])
-        profile[k] <- profile[k] * fold_changes[[i]]
+        fold_change[k] <- fold_change_specs[[i]]
       }
 
-      profile
+      fold_change
     }
 
     list(
-          make_profile(list(),
-                       list()),
+          make_fold_change(list(),
+                           list()),
 
-          make_profile(list(c(1, 2, 5), c(3, 7)),
-                       list(         2,     0.5)),
+          make_fold_change(list(c(1, 2, 5), c(3, 7)),
+                           list(         2,     0.5)),
 
-          make_profile(list(c(1, 4),    c(3, 6), c(5)),
-                       list(      2,        0.3,    3))
+          make_fold_change(list(c(1, 4),    c(3, 6), c(5)),
+                           list(      2,        0.3,    3))
         )
+
   })
 
   ## --------------------------------------------------------------------------
@@ -301,7 +317,7 @@ mh_usecase <- function () {
     expected_library_size <-
       expected_number_of_counts_per_gene * number_of_genes
 
-    number_of_conditions <- length(profiles)
+    number_of_conditions <- length(fold_changes)
 
     replicate(
                number_of_conditions,
@@ -315,7 +331,7 @@ mh_usecase <- function () {
 
   ## --------------------------------------------------------------------------
 
-  get_counts(profiles, expected_library_sizes)
+  get_counts(fold_changes, expected_library_sizes)
 
 }
 
