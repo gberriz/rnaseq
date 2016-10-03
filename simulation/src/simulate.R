@@ -209,7 +209,7 @@ to_counts_dataframe <- function (counts_matrix) {
 
 ## ----------------------------------------------------------------------------
 
-import <- function (
+import_environment <- function (
                     environment_,
                     wanted,
                     target = parent.frame()
@@ -353,10 +353,11 @@ mh_usecase <- function () {
 
 main <- function () {
 
-  import(mh_usecase(),
-         c("all_counts",
-           "fold_changes",
-           "expected_library_sizes"))
+  import_environment(mh_usecase(),
+                     c("all_counts",
+                       "fold_changes",
+                       "expected_library_sizes",
+                       "sample_names"))
 
   counts <-
   get_filtered_counts(all_counts, counts_threshold = 10)
