@@ -181,9 +181,9 @@ random_tiles <- function (n, lengths) {
 
 ## ----------------------------------------------------------------------------
 
-indexed_names <- function (prefix, n) {
+indexed_names <- function (prefix, n, start = 1) {
   format <- sprintf("%s_%%0%dd", prefix, floor(log10(n)) + 1)
-  sapply(1:n, function (i) sprintf(format, i))
+  sapply(0:(n - 1), function (i) sprintf(format, start + i))
 }
 
 ## ----------------------------------------------------------------------------
