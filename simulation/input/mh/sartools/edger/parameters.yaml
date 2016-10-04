@@ -1,0 +1,34 @@
+## workDir: C:/path/to/your/working/directory/
+workDir: /home/berriz/_/projects/rnaseq/simulation/results/mh/sartools/edger
+
+## projectName: projectName
+## author: Your name
+## targetFile: target.txt
+targetFile: ../../../../input/mh/target/data.tsv
+
+## rawDir: raw
+rawDir: ../../../../input/mh/counts
+
+## featuresToRemove:
+## - alignment_not_unique
+## - ambiguous
+## - no_feature
+## - not_aligned
+## - too_low_aQual
+## varInt: group
+## condRef: WT
+condRef: U
+
+## batch: ~
+## fitType: parametric
+## cooksCutoff: yes
+## independentFiltering: yes
+## alpha: 0.05
+## pAdjustMethod: BH
+## typeTrans: VST
+## locfunc: median
+## colors:
+## - dodgerblue
+## - firebrick1
+## - MediumVioletRed
+## - SpringGreen

@@ -1,0 +1,10 @@
+label	files	group	agent	condition	replicate	control_group	is_control
+U1	U1/data.tsv	U	null	U	1	1	TRUE
+U2	U2/data.tsv	U	null	U	2	1	TRUE
+U3	U3/data.tsv	U	null	U	3	1	TRUE
+T11	T11/data.tsv	T1	agent_1	T1	1	1	FALSE
+T12	T12/data.tsv	T1	agent_1	T1	2	1	FALSE
+T13	T13/data.tsv	T1	agent_1	T1	3	1	FALSE
+T21	T21/data.tsv	T2	agent_2	T2	1	1	FALSE
+T22	T22/data.tsv	T2	agent_2	T2	2	1	FALSE
+T23	T23/data.tsv	T2	agent_2	T2	3	1	FALSE

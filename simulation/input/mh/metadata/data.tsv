@@ -1,0 +1,10 @@
+symbol	agent	condition	replicate	control_group	is_control
+U1	null	U	1	1	T
+U2	null	U	2	1	T
+U3	null	U	3	1	T
+T11	agent_1	T1	1	1	F
+T12	agent_1	T1	2	1	F
+T13	agent_1	T1	3	1	F
+T21	agent_2	T2	1	1	F
+T22	agent_2	T2	2	1	F
+T23	agent_2	T2	3	1	F
