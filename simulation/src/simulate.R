@@ -42,7 +42,7 @@
 
 ## ----------------------------------------------------------------------------
 
-get_counts <- function (fold_changes, expected_library_sizes) {
+get_counts <- function (fold_changes, expected_library_sizes, ...) {
 
   lambda <- get_expected_counts(fold_changes, expected_library_sizes)
 
@@ -99,7 +99,7 @@ get_counts <- function (fold_changes, expected_library_sizes) {
                           number_of_genes,
                           number_of_samples)
 
-  to_counts_dataframe(counts_matrix)
+  to_counts_dataframe(counts_matrix, ...)
 
 }
 
@@ -188,7 +188,7 @@ indexed_names <- function (prefix, n, start = 1) {
 
 ## ----------------------------------------------------------------------------
 
-to_counts_dataframe <- function (counts_matrix) {
+to_counts_dataframe <- function (counts_matrix, sample_names = NULL) {
 
   row_names <- local({
     number_of_genes <- nrow(counts_matrix)
@@ -197,7 +197,11 @@ to_counts_dataframe <- function (counts_matrix) {
 
   column_names <- local({
     number_of_samples <- ncol(counts_matrix)
-    indexed_names("SAMPLE", number_of_samples)
+    if (is.null(sample_names)) indexed_names("SAMPLE", number_of_samples)
+    else {
+      stopifnot(length(sample_names) == number_of_samples)
+      sample_names
+    }
   })
 
   setNames(
@@ -344,7 +348,10 @@ mh_usecase <- function () {
 
   ## --------------------------------------------------------------------------
 
-  all_counts <- get_counts(fold_changes, expected_library_sizes)
+  all_counts <- get_counts(fold_changes, expected_library_sizes,
+                           sample_names = row.names(metadata))
+
+  save_counts_per_sample(all_counts, inputdir, metadata)
 
   environment()
 }
