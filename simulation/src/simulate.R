@@ -421,6 +421,90 @@ voom_usecase <- function () {
 }
 
 ## ----------------------------------------------------------------------------
+collect <- function (inputdir, basename_ = "data.tsv", ...) {
+
+    default_arguments <- list(header = TRUE)
+
+    arguments <- modifyList(default_arguments, list(...))
+
+    collect_ <- function (inputdir) {
+        inputfile <- file.path(inputdir, basename_)
+        if (file.exists(inputfile)) {
+            do.call(read.table,
+                    c(list(inputfile), arguments))
+        }
+        else {
+            sapply(
+                    list.files(path = inputdir),
+                    function (subdir) {
+                        collect_(file.path(inputdir, subdir))
+                    },
+                    simplify = FALSE
+                  )
+        }
+    }
+
+    collect_(inputdir)
+}
+
+read_expected_fold_changes <- function (expected_fold_changes_dir) {
+
+  collect(expected_fold_changes_dir,
+          header = FALSE,
+          col.names = c("gene_id", "expected_fold_change"),
+          row.names = "gene_id")
+
+}
+
+mh_usecase_make_expected_fold_changes <- function (metadata,
+                                                   number_of_genes,
+                                                   outputdir) {
+
+    genes <- indexed_names("GENE", number_of_genes)
+
+    make_fold_change <- function (residues, fold_change_specs) {
+
+      n <- length(residues)
+
+      stopifnot(length(fold_change_specs) == n)
+
+      fold_change <- rep(1, number_of_genes)
+
+      stride <- 20
+      j <- 1:number_of_genes
+      for (i in seq_along(residues)) {
+        k <- which((j %% stride) %in% residues[[i]])
+        fold_change[k] <- fold_change_specs[[i]]
+      }
+
+      data.frame(fold_change = fold_change, row.names = genes)
+    }
+
+    conditions <- unique(metadata$condition)
+
+    expected_fold_changes <-
+      list(
+            make_fold_change(list(),
+                             list()),
+
+            make_fold_change(list(c(1, 2, 5), c(3, 7)),
+                             list(         2,     0.5)),
+
+            make_fold_change(list(c(1, 4),    c(3, 6), c(5)),
+                             list(      2,        0.3,    3))
+          )
+
+    stopifnot(length(expected_fold_changes) == length(conditions))
+
+    for (i in seq_along(conditions)) {
+      output_file <- file.path(outputdir, conditions[[i]], "data.tsv")
+      write_2d_data(expected_fold_changes[[i]],
+                    output_file = output_file,
+                    row_names = TRUE,
+                    column_names = FALSE)
+    }
+
+}
 
 mh_usecase <- function () {
 
@@ -451,40 +535,26 @@ mh_usecase <- function () {
 
   ## --------------------------------------------------------------------------
 
+  mh_usecase_make_expected_fold_changes(metadata,
+                                        number_of_genes,
+                                        expected_fold_changes_dir)
+
+  conditions <- as.character(unique(metadata$condition))
+
   expected_fold_changes <- local({
 
-    make_fold_change <- function (residues, fold_change_specs) {
+    tables <-
+      read_expected_fold_changes(expected_fold_changes_dir)
 
-      n <- length(residues)
+    vectors_list <- sapply(tables,
+                           function (table_) table_[[1]],
+                           simplify = FALSE)
 
-      stopifnot(length(fold_change_specs) == n)
-
-      fold_change <- rep(1, number_of_genes)
-
-      if (n == 0) return(fold_change)
-
-      stride <- 20
-      j <- 1:number_of_genes
-      for (i in seq_along(residues)) {
-        k <- which((j %% stride) %in% residues[[i]])
-        fold_change[k] <- fold_change_specs[[i]]
-      }
-
-      fold_change
-    }
-
-    list(
-          make_fold_change(list(),
-                           list()),
-
-          make_fold_change(list(c(1, 2, 5), c(3, 7)),
-                           list(         2,     0.5)),
-
-          make_fold_change(list(c(1, 4),    c(3, 6), c(5)),
-                           list(      2,        0.3,    3))
-        )
-
+    # ensure right ordering
+    vectors_list[conditions]
   })
+
+  stopifnot(identical(sort(names(expected_fold_changes)), sort(conditions)))
 
   ## --------------------------------------------------------------------------
 
