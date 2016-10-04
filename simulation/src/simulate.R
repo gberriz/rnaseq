@@ -41,6 +41,9 @@
 ##   40/δ_g ∼ (χ_40)^2.
 
 ## ----------------------------------------------------------------------------
+import("misc")
+
+## ----------------------------------------------------------------------------
 
 get_counts <- function (fold_changes, expected_library_sizes, ...) {
 
@@ -212,48 +215,6 @@ to_counts_dataframe <- function (counts_matrix, sample_names = NULL) {
 
 ## ----------------------------------------------------------------------------
 
-mkdir_for <- function (path) {
-  dir.create(dirname(path),
-             showWarnings = FALSE,
-             recursive = TRUE,
-             mode = "0775")
-}
-
-write_2d_data <- function (
-                           dataframe_or_matrix,
-                           output_file,
-                           row_names = TRUE,
-                           column_names = TRUE
-                          ) {
-
-  parameters = list(
-                    NULL,
-                    file = output_file,
-                    quote = FALSE,
-                    sep = "\t",
-                    col.names = column_names
-                   )
-
-  if (is.character(row_names)) {
-
-    parameters[[1]] <- setNames(data.frame(row.names(dataframe_or_matrix),
-                                           dataframe_or_matrix),
-                                c(row_names,
-                                  colnames(dataframe_or_matrix)))
-    parameters$row.names <- FALSE
-  }
-  else {
-    parameters[[1]] <- dataframe_or_matrix
-    parameters$row.names <- row_names
-  }
-
-  mkdir_for(output_file)
-
-  do.call(write.table, parameters)
-}
-
-## ----------------------------------------------------------------------------
-
 read_metadata <- function (metadatadir, wanted_columns) {
 
   raw <- local({
@@ -351,16 +312,16 @@ save_counts_per_sample <- function (counts, directory, metadata) {
 
   })
 
-  write_2d_data(target,
-                file.path(directory, "target", "data.tsv"),
-                row_names = FALSE)
+  misc$write_2d_data(target,
+                     file.path(directory, "target", "data.tsv"),
+                     row_names = FALSE)
 
   datadir <- file.path(directory, "counts")
 
   for (label in names(counts)) {
-    write_2d_data(counts[, label, drop = FALSE],
-                  file.path(datadir, label_2_path(label)),
-                  column_names = FALSE)
+    misc$write_2d_data(counts[, label, drop = FALSE],
+                       file.path(datadir, label_2_path(label)),
+                       column_names = FALSE)
   }
 
 }
@@ -421,41 +382,6 @@ voom_usecase <- function () {
 }
 
 ## ----------------------------------------------------------------------------
-collect <- function (inputdir, basename_ = "data.tsv", ...) {
-
-    default_arguments <- list(header = TRUE)
-
-    arguments <- modifyList(default_arguments, list(...))
-
-    collect_ <- function (inputdir) {
-        inputfile <- file.path(inputdir, basename_)
-        if (file.exists(inputfile)) {
-            do.call(read.table,
-                    c(list(inputfile), arguments))
-        }
-        else {
-            sapply(
-                    list.files(path = inputdir),
-                    function (subdir) {
-                        collect_(file.path(inputdir, subdir))
-                    },
-                    simplify = FALSE
-                  )
-        }
-    }
-
-    collect_(inputdir)
-}
-
-read_expected_fold_changes <- function (expected_fold_changes_dir) {
-
-  collect(expected_fold_changes_dir,
-          header = FALSE,
-          col.names = c("gene_id", "expected_fold_change"),
-          row.names = "gene_id")
-
-}
-
 mh_usecase_make_expected_fold_changes <- function (metadata,
                                                    number_of_genes,
                                                    outputdir) {
@@ -498,10 +424,10 @@ mh_usecase_make_expected_fold_changes <- function (metadata,
 
     for (i in seq_along(conditions)) {
       output_file <- file.path(outputdir, conditions[[i]], "data.tsv")
-      write_2d_data(expected_fold_changes[[i]],
-                    output_file = output_file,
-                    row_names = TRUE,
-                    column_names = FALSE)
+      misc$write_2d_data(expected_fold_changes[[i]],
+                         output_file = output_file,
+                         row_names = TRUE,
+                         column_names = FALSE)
     }
 
 }
@@ -544,7 +470,7 @@ mh_usecase <- function () {
   expected_fold_changes <- local({
 
     tables <-
-      read_expected_fold_changes(expected_fold_changes_dir)
+      misc$read_expected_fold_changes(expected_fold_changes_dir)
 
     vectors_list <- sapply(tables,
                            function (table_) table_[[1]],
