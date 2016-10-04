@@ -212,6 +212,48 @@ to_counts_dataframe <- function (counts_matrix, sample_names = NULL) {
 
 ## ----------------------------------------------------------------------------
 
+mkdir_for <- function (path) {
+  dir.create(dirname(path),
+             showWarnings = FALSE,
+             recursive = TRUE,
+             mode = "0775")
+}
+
+write_2d_data <- function (
+                           dataframe_or_matrix,
+                           output_file,
+                           row_names = TRUE,
+                           column_names = TRUE
+                          ) {
+
+  parameters = list(
+                    NULL,
+                    file = output_file,
+                    quote = FALSE,
+                    sep = "\t",
+                    col.names = column_names
+                   )
+
+  if (is.character(row_names)) {
+
+    parameters[[1]] <- setNames(data.frame(row.names(dataframe_or_matrix),
+                                           dataframe_or_matrix),
+                                c(row_names,
+                                  colnames(dataframe_or_matrix)))
+    parameters$row.names <- FALSE
+  }
+  else {
+    parameters[[1]] <- dataframe_or_matrix
+    parameters$row.names <- row_names
+  }
+
+  mkdir_for(output_file)
+
+  do.call(write.table, parameters)
+}
+
+## ----------------------------------------------------------------------------
+
 read_metadata <- function (metadatadir, wanted_columns) {
 
   raw <- local({
@@ -277,6 +319,49 @@ import_environment <- function (
                    ) {
 
   list2env(as.list(environment_)[wanted], envir = target)
+
+}
+
+## ----------------------------------------------------------------------------
+
+save_counts_per_sample <- function (counts, directory, metadata) {
+
+  stopifnot(identical(row.names(metadata), names(counts)))
+
+  label_2_path <- function (label) file.path(label, "data.tsv")
+
+  target <- local({
+
+    base <- data.frame(
+
+      label = row.names(metadata),
+
+      files = sapply(
+                      row.names(metadata),
+                      label_2_path,
+                      simplify = TRUE,
+                      USE.NAMES = FALSE
+                    ),
+
+      group = metadata$condition
+    )
+
+    cbind(base,
+          subset(metadata, select = setdiff(names(metadata), names(base))))
+
+  })
+
+  write_2d_data(target,
+                file.path(directory, "target", "data.tsv"),
+                row_names = FALSE)
+
+  datadir <- file.path(directory, "counts")
+
+  for (label in names(counts)) {
+    write_2d_data(counts[, label, drop = FALSE],
+                  file.path(datadir, label_2_path(label)),
+                  column_names = FALSE)
+  }
 
 }
 
