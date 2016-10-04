@@ -431,6 +431,7 @@ mh_usecase <- function () {
   use_case <- "mh"
   inputdir <- file.path("input", use_case)
   datadir <- file.path(inputdir, "counts")
+  expected_fold_changes_dir <- file.path(inputdir, "expected_fold_changes")
 
   metadata <- local({
     wanted_columns <- list(agent = "ordered",
@@ -450,7 +451,7 @@ mh_usecase <- function () {
 
   ## --------------------------------------------------------------------------
 
-  fold_changes <- local({
+  expected_fold_changes <- local({
 
     make_fold_change <- function (residues, fold_change_specs) {
 
@@ -492,7 +493,7 @@ mh_usecase <- function () {
     expected_library_size <-
       expected_number_of_counts_per_gene * number_of_genes
 
-    number_of_conditions <- length(fold_changes)
+    number_of_conditions <- length(expected_fold_changes)
 
     replicate(
                number_of_conditions,
@@ -506,7 +507,7 @@ mh_usecase <- function () {
 
   ## --------------------------------------------------------------------------
 
-  all_counts <- get_counts(fold_changes, expected_library_sizes,
+  all_counts <- get_counts(expected_fold_changes, expected_library_sizes,
                            sample_names = row.names(metadata))
 
   save_counts_per_sample(all_counts, inputdir, metadata)
@@ -520,7 +521,7 @@ main <- function () {
 
   import_environment(mh_usecase(),
                      c("all_counts",
-                       "fold_changes",
+                       "expected_fold_changes",
                        "expected_library_sizes",
                        "sample_names"))
 
