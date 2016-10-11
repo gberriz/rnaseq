@@ -19,3 +19,13 @@ GENE_002  8.792884    4.639153    1 8.792884
 GENE_145  4.361421  463.271535    3 1.453807
 GENE_344  4.077324 1780.405563    2 2.038662
 GENE_165  3.969041  630.799638    3 1.323014
+
+* 161011T
+** to generate figures
+*** (in zsh) src/make_conditions.sh io/mh 500 32000 125 8000
+*** (in R) source("src/simulate.R")
+*** (in zsh) src/make_yaml.sh /tmp/foo 500 32000 125 8000
+*** (in R) source("src/run_sartools.R")
+*** (in zsh) src/make_page.sh io/mh $HOME/public_html/rnaseq/simulation
+*** output
+    in http://luna/~berriz/rnaseq/simulation/plots/__ALL__/
