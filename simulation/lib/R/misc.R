@@ -46,28 +46,28 @@ write_2d_data <- function (
 
 collect <- function (inputdir, basename_ = "data.tsv", ...) {
 
-    default_arguments <- list(header = TRUE)
+  default_arguments <- list(header = TRUE)
 
-    arguments <- modifyList(default_arguments, list(...))
+  arguments <- modifyList(default_arguments, list(...))
 
-    collect_ <- function (inputdir) {
-        inputfile <- file.path(inputdir, basename_)
-        if (file.exists(inputfile)) {
-            do.call(read.table,
-                    c(list(inputfile), arguments))
-        }
-        else {
-            sapply(
-                    list.files(path = inputdir),
-                    function (subdir) {
-                        collect_(file.path(inputdir, subdir))
-                    },
-                    simplify = FALSE
-                  )
-        }
+  collect_ <- function (inputdir) {
+    inputfile <- file.path(inputdir, basename_)
+    if (file.exists(inputfile)) {
+      do.call(read.table,
+              c(list(inputfile), arguments))
     }
+    else {
+      sapply(
+              list.files(path = inputdir),
+              function (subdir) {
+                collect_(file.path(inputdir, subdir))
+              },
+              simplify = FALSE
+            )
+    }
+  }
 
-    collect_(inputdir)
+  collect_(inputdir)
 }
 
 ## ----------------------------------------------------------------------------
@@ -81,4 +81,3 @@ read_expected_fold_changes <- function (expected_fold_changes_dir) {
 
 
 }
-

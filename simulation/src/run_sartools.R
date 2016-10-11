@@ -68,12 +68,12 @@ load_parameters_for_edger <- function (user_settings, target = parent.frame()) {
 }
 
 run_sartools <- list(
-  deseq2 = function (user_settings_file) {
+  deseq2 = function (user_settings) {
 
     current_directory <- getwd()
     on.exit(setwd(current_directory))
 
-    load_parameters_for_deseq2(yaml::yaml.load_file(user_settings_file))
+    load_parameters_for_deseq2(user_settings)
 
     dir.create(workDir,
                showWarnings = FALSE,
@@ -131,12 +131,12 @@ run_sartools <- list(
     out.DESeq2
   },
 
-  edger = function (user_settings_file) {
+  edger = function (user_settings) {
 
     current_directory <- getwd()
     on.exit(setwd(current_directory))
 
-    load_parameters_for_edger(yaml::yaml.load_file(user_settings_file))
+    load_parameters_for_edger(user_settings)
 
     dir.create(workDir,
                showWarnings = FALSE,
@@ -193,18 +193,36 @@ run_sartools <- list(
   }
 )
 
-save_scatterplot_png <- function (x, y, output_file) {
-  misc$mkdir_for(output_file)
-  plot(x, y)
+## save_scatterplot_png <- function (x, y, output_file) {
+##   misc$mkdir_for(output_file)
+##   plot(x, y)
+##   dev.copy(png, output_file)
+##   dev.off()
+## }
+
+save_plot_png <- function (xx, yy, output_file) {
+
+  dir.create(dirname(output_file),
+             showWarnings = FALSE,
+             recursive = TRUE,
+             mode = "0775")
+
+  xs <- sort(unique(xx))
+
+  boxplot(sapply(xs,
+                 function (x) yy[xx == x],
+                 simplify = FALSE),
+          at = log2(xs),
+          names = xs,
+          log = "y",
+          ylim = c(0.15, 6),
+          boxwex = 0.5)
+
   dev.copy(png, output_file)
   dev.off()
 }
 
-main <- function () {
-
-  use_case <- "mh"
-  inputdir <- file.path("input", use_case)
-  sartoolsdir <- file.path(inputdir, "sartools")
+run <- function (inputdir, user_settings, plotsdir) {
 
   expected_fold_changes_dir <- file.path(inputdir, "expected_fold_changes")
 
@@ -213,27 +231,18 @@ main <- function () {
 
   methods <- c("deseq2", "edger")
 
-  output <- local({
-    user_settings_files <- sapply(methods,
-                                  function (method) {
-                                    file.path(sartoolsdir,
-                                              method,
-                                              "parameters.yaml")
-                                   },
-                                   simplify = FALSE)
-
-
-
-    mapply(function (sartools_function, settings_file) {
-             sartools_function(settings_file)
+  output <-
+    mapply(function (sartools_function, settings, method) {
+             cat(method, '\n')
+             sink("/dev/null");
+             on.exit(sink());
+             suppressWarnings(suppressMessages(sartools_function(settings)))
            },
            run_sartools,
-           user_settings_files)
-  })
+           user_settings,
+           methods)
 
   ## --------------------------------------------------------------------------
-
-  plotsdir <- "results/mh/simulation"
 
   do_plots <- function (method, results, fold_change_column) {
 
@@ -243,8 +252,8 @@ main <- function () {
       results_for_contrast <- results[[contrast_name]]
       y <- 2**results_for_contrast[, fold_change_column]
       x <- expected_fold_changes[[condition]][row.names(results_for_contrast), ]
-      output_file <- file.path(plotsdir, method, condition, "plot.png")
-      save_scatterplot_png(x, y, output_file)
+      output_file <- file.path(plotsdir, method, "simulation", condition, "plot.png")
+      save_plot_png(x, y, output_file)
     }
 
   }
@@ -254,6 +263,46 @@ main <- function () {
 
   for (method in methods) {
     do_plots(method, output[[method]]$results, wanted_column[[method]])
+  }
+
+}
+
+main <- function () {
+
+  use_case <- "mh"
+  basedir <- file.path("io", use_case)
+
+  current_directory <- getwd()
+  on.exit(setwd(current_directory))
+  setwd(basedir)
+
+  ## resultsdir <- file.path("results", use_case, "simulation")
+
+  methods <- c("deseq2", "edger")
+
+  for (targetdir in list.files(".",
+                               pattern = "target",
+                               recursive = TRUE,
+                               include.dirs = TRUE)) {
+
+    inputdir <- dirname(targetdir)
+    cat(file.path(basedir, inputdir), '\n')
+
+    sartoolsdir <- file.path(inputdir, "sartools")
+
+    user_settings <-
+      sapply(methods,
+             function (method) {
+               path <- file.path(sartoolsdir,
+                                 method,
+                                 "parameters.yaml")
+               yaml::yaml.load_file(path)
+             },
+             simplify = FALSE)
+
+    plotsdir <- file.path(inputdir, "results")
+
+    run(inputdir, user_settings, plotsdir)
   }
 
 }

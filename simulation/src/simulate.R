@@ -184,8 +184,12 @@ random_tiles <- function (n, lengths) {
 
 ## ----------------------------------------------------------------------------
 
+format_for <- function (maxn) {
+  sprintf("%%0%dd", nchar(as.character(maxn)))
+}
+
 indexed_names <- function (prefix, n, start = 1) {
-  format <- sprintf("%s_%%0%dd", prefix, floor(log10(n)) + 1)
+  format <- sprintf("%s_%s", prefix, format_for(n))
   sapply(0:(n - 1), function (i) sprintf(format, start + i))
 }
 
@@ -422,65 +426,118 @@ mh_usecase_make_expected_fold_changes <- function (metadata,
 
     stopifnot(length(expected_fold_changes) == length(conditions))
 
-    for (i in seq_along(conditions)) {
-      output_file <- file.path(outputdir, conditions[[i]], "data.tsv")
-      misc$write_2d_data(expected_fold_changes[[i]],
-                         output_file = output_file,
-                         row_names = TRUE,
-                         column_names = FALSE)
+    if (!missing(outputdir)) {
+        for (i in seq_along(conditions)) {
+          output_file <- file.path(outputdir, conditions[[i]], "data.tsv")
+          misc$write_2d_data(expected_fold_changes[[i]],
+                             output_file = output_file,
+                             row_names = TRUE,
+                             column_names = FALSE)
+        }
     }
 
+    setNames(expected_fold_changes, conditions)
 }
 
-mh_usecase <- function () {
+run_mh_usecase <- function () {
 
   set.seed(0)
 
   ## --------------------------------------------------------------------------
 
   use_case <- "mh"
-  inputdir <- file.path("input", use_case)
-  datadir <- file.path(inputdir, "counts")
-  expected_fold_changes_dir <- file.path(inputdir, "expected_fold_changes")
+  basedir <- file.path("io", use_case)
 
-  metadata <- local({
-    wanted_columns <- list(agent = "ordered",
-                           condition = "ordered",
-                           replicate = "ordered",
-                           control_group = "ordered",
-                           is_control = "logical")
-
-    read_metadata(file.path(inputdir, "metadata"), wanted_columns)
-  })
-
-  ## --------------------------------------------------------------------------
-
-  number_of_genes <- 500
-  expected_number_of_counts_per_gene <- 1000
   number_of_replicates_per_condition <- 3
 
+  number_of_genes_min <- 500
+  number_of_genes_max <- 32000
+  expected_number_of_counts_per_gene_min <- 125
+  expected_number_of_counts_per_gene_max <- 8000
+
+  number_of_genes_format <- format_for(number_of_genes_max)
+  expected_number_of_counts_per_gene_format <-
+    format_for(expected_number_of_counts_per_gene_max)
+
   ## --------------------------------------------------------------------------
 
-  mh_usecase_make_expected_fold_changes(metadata,
-                                        number_of_genes,
-                                        expected_fold_changes_dir)
+  number_of_genes <- number_of_genes_min
 
-  conditions <- as.character(unique(metadata$condition))
+  while (number_of_genes <= number_of_genes_max) {
 
-  expected_fold_changes <- local({
+    expected_number_of_counts_per_gene <-
+       expected_number_of_counts_per_gene_min
 
-    tables <-
-      misc$read_expected_fold_changes(expected_fold_changes_dir)
+    while (expected_number_of_counts_per_gene <=
+           expected_number_of_counts_per_gene_max) {
 
-    vectors_list <- sapply(tables,
-                           function (table_) table_[[1]],
-                           simplify = FALSE)
+      inputdir <- file.path(basedir,
+                            sprintf(number_of_genes_format,
+                                    number_of_genes),
+                            sprintf(expected_number_of_counts_per_gene_format,
+                                    expected_number_of_counts_per_gene))
 
-    # ensure right ordering
-    vectors_list[conditions]
-  })
+      metadata <- local({
+        wanted_columns <- list(agent = "ordered",
+                               condition = "ordered",
+                               replicate = "ordered",
+                               control_group = "ordered",
+                               is_control = "logical")
 
-  stopifnot(identical(sort(names(expected_fold_changes)), sort(conditions)))
+        read_metadata(file.path(inputdir, "metadata"), wanted_columns)
+      })
+
+      cat(inputdir, '\n')
+
+      expected_fold_changes_dir <- file.path(inputdir,
+                                             "expected_fold_changes")
+
+      expected_fold_changes <-
+        mh_usecase_make_expected_fold_changes(metadata,
+                                              number_of_genes,
+                                              expected_fold_changes_dir)
+
+      conditions <- as.character(unique(metadata$condition))
+
+      ## expected_fold_changes <- local({
+
+      ##   tables <-
+      ##     misc$read_expected_fold_changes(expected_fold_changes_dir)
+
+      ##   vectors_list <- sapply(tables,
+      ##                          function (table_) table_[[1]],
+      ##                          simplify = FALSE)
+
+      ##   # ensure right ordering
+      ##   vectors_list[conditions]
+      ## })
+
+      stopifnot(identical(sort(names(expected_fold_changes)), sort(conditions)))
+
+      ## ----------------------------------------------------------------------
+
+      counts <- mh_usecase(metadata,
+                           expected_fold_changes,
+                           expected_number_of_counts_per_gene,
+                           number_of_replicates_per_condition)
+
+      save_counts_per_sample(counts, inputdir, metadata)
+
+      expected_number_of_counts_per_gene <-
+          2 * expected_number_of_counts_per_gene
+    }
+
+    number_of_genes <- 2 * number_of_genes
+  }
+
+}
+
+mh_usecase <- function (metadata,
+                        expected_fold_changes,
+                        expected_number_of_counts_per_gene,
+                        number_of_replicates_per_condition) {
+
+  number_of_genes <- length(expected_fold_changes[[1]])
 
   ## --------------------------------------------------------------------------
 
@@ -503,29 +560,51 @@ mh_usecase <- function () {
 
   ## --------------------------------------------------------------------------
 
-  all_counts <- get_counts(expected_fold_changes, expected_library_sizes,
-                           sample_names = row.names(metadata))
+  get_counts(expected_fold_changes,
+             expected_library_sizes,
+             sample_names = row.names(metadata))
 
-  save_counts_per_sample(all_counts, inputdir, metadata)
+  ## all_counts <- get_counts(expected_fold_changes,
+  ##                          expected_library_sizes,
+  ##                          sample_names = row.names(metadata))
 
-  environment()
+  ## save_counts_per_sample(all_counts, outputdir, metadata)
+
+  ## environment()
 }
 
 ## ----------------------------------------------------------------------------
 
 main <- function () {
 
-  import_environment(mh_usecase(),
-                     c("all_counts",
-                       "expected_fold_changes",
-                       "expected_library_sizes",
-                       "sample_names"))
+  run_mh_usecase()
 
-  counts <-
-  get_filtered_counts(all_counts, counts_threshold = 10)
+  ## import_environment(mh_usecase(),
+  ##                    c("all_counts",
+  ##                      "expected_fold_changes",
+  ##                      "expected_library_sizes",
+  ##                      "sample_names"))
 
-  browser()
-  counts
+  ## counts <-
+  ## get_filtered_counts(all_counts, counts_threshold = 10)
+
+  ## expected_counts <-
+  ##     to_counts_dataframe(get_expected_counts(expected_fold_changes,
+  ##                                             expected_library_sizes))
+
+  ## expected  <- setNames(list(expected_counts[, 1:3],
+  ##                            expected_counts[, 4:6],
+  ##                            expected_counts[, 7:9]),
+  ##                       0:2)
+
+  ## simulated <- setNames(list(all_counts[, 1:3],
+  ##                            all_counts[, 4:6],
+  ##                            all_counts[, 7:9]),
+  ##                       0:2)
+
+  ## ## browser()
+  ## ## counts
+  ## invisible()
 
 }
 
