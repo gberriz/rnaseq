@@ -501,8 +501,10 @@ run_mh_usecase <- function () {
 
       ## expected_fold_changes <- local({
 
+      ##   import("common")
+
       ##   tables <-
-      ##     misc$read_expected_fold_changes(expected_fold_changes_dir)
+      ##     common$read_expected_fold_changes(expected_fold_changes_dir)
 
       ##   vectors_list <- sapply(tables,
       ##                          function (table_) table_[[1]],

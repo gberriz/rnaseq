@@ -71,13 +71,3 @@ collect <- function (inputdir, basename_ = "data.tsv", ...) {
 }
 
 ## ----------------------------------------------------------------------------
-
-read_expected_fold_changes <- function (expected_fold_changes_dir) {
-
-  collect(expected_fold_changes_dir,
-          header = FALSE,
-          col.names = c("gene_id", "expected_fold_change"),
-          row.names = "gene_id")
-
-
-}

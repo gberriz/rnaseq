@@ -1,5 +1,8 @@
+## ----------------------------------------------------------------------------
 import("misc")
+import("common")
 
+## ----------------------------------------------------------------------------
 PARAMETER_DEFAULTS <- list(
 
   common = local({
@@ -227,7 +230,7 @@ run <- function (inputdir, user_settings, plotsdir) {
   expected_fold_changes_dir <- file.path(inputdir, "expected_fold_changes")
 
   expected_fold_changes <-
-    misc$read_expected_fold_changes(expected_fold_changes_dir)
+    common$read_expected_fold_changes(expected_fold_changes_dir)
 
   methods <- c("deseq2", "edger")
 
