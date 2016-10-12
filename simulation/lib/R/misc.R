@@ -1,11 +1,13 @@
 ## ----------------------------------------------------------------------------
 
-mkdir_for <- function (path) {
-  dir.create(dirname(path),
+mkdir <- function (path, mode = "0775") {
+  dir.create(path,
              showWarnings = FALSE,
              recursive = TRUE,
-             mode = "0775")
+             mode = mode)
 }
+
+mkdir_for <- function (path, ...) mkdir(dirname(path), ...)
 
 ## ----------------------------------------------------------------------------
 
