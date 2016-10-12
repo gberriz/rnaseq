@@ -125,3 +125,64 @@ import_from_environment <- function (
 }
 
 ## ----------------------------------------------------------------------------
+
+read_metadata <- function (metadatadir, wanted_columns) {
+
+  full_table <- local({
+
+    arguments <- list(file = NULL,
+                      colClasses = "character",
+                      row.names = "symbol")
+
+    table_file <- file.path(metadatadir, "data.tsv")
+
+    if (file.exists(table_file)) {
+      arguments$file <- table_file
+      arguments$header <- TRUE
+    }
+    else {
+      headers_file <- file.path(metadatadir, "headers.tsv")
+      rows_file <- file.path(metadatadir, "rows.tsv")
+
+      if (file.exists(headers_file) && file.exists(rows_file)) {
+        arguments$file <- rows_file
+        headers <- scan(
+                         headers_file,
+                         what = "character",
+                         quiet = TRUE
+                       )
+        arguments$header <- FALSE
+        arguments$col.names <- headers
+      }
+    }
+
+    do.call(read.table, arguments)
+
+  })
+
+  if (missing(wanted_columns)) return(full_table)
+
+  raw <- subset(full_table, select = names(wanted_columns))
+
+  ordered_factor <- function (values) {
+    factor(values, levels = unique(values), ordered = TRUE)
+  }
+
+  process_column <- function (column, type) {
+    switch(type,
+           logical = as.logical(column),
+           ordered = ordered_factor(column),
+                     column) # default
+  }
+
+  data.frame(
+              mapply(process_column,
+                     as.list(raw),
+                     wanted_columns[names(raw)],
+                     SIMPLIFY = FALSE),
+              row.names = row.names(raw)
+            )
+
+}
+
+## ----------------------------------------------------------------------------
