@@ -71,3 +71,57 @@ collect <- function (inputdir, basename_ = "data.tsv", ...) {
 }
 
 ## ----------------------------------------------------------------------------
+
+seq_along_by <- function(x, by = 1L) {
+
+  1L + seq(from = 0, to = (length(x) - 1) %/% by) * by
+
+}
+
+## ----------------------------------------------------------------------------
+
+cond <- function (...) {
+
+  parent_environment <- parent.frame()
+
+  cond_ <- function (arguments) {
+
+    for (i in seq_along_by(arguments, by = 2)) {
+
+      if (eval(arguments[[i]], envir = parent_environment))
+        return(eval(arguments[[i + 1]], envir = parent_environment))
+
+    }
+
+  }
+
+  arguments <- match.call(expand.dots = FALSE)$`...`
+
+  if (length(arguments) %% 2 == 1) {
+
+    cond_(c(head(arguments, n = -1L),
+            list("TRUE"),
+            tail(arguments, n = 1L)))
+
+  }
+  else {
+
+    cond_(arguments)
+
+  }
+
+}
+
+## ----------------------------------------------------------------------------
+
+import_from_environment <- function (
+                                      environment_,
+                                      wanted,
+                                      target = parent.frame()
+                                    ) {
+
+  list2env(as.list(environment_)[wanted], envir = target)
+
+}
+
+## ----------------------------------------------------------------------------
