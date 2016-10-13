@@ -188,3 +188,105 @@ read_metadata <- function (metadatadir, wanted_columns) {
 }
 
 ## ----------------------------------------------------------------------------
+
+path_to_script <- function () {
+
+  leading_command_arguments <- local({
+
+    all_command_arguments <- commandArgs(trailingOnly = FALSE)
+
+    max_index <-
+      length(all_command_arguments) - length(commandArgs(trailingOnly = TRUE))
+
+    all_command_arguments[1:max_index]
+
+  })
+
+  paths <- local({
+
+    # the gsub statement below maps all elements of leading_command_arguments
+    # that match "--file=<PATH>" to "<PATH>", and the rest to "".  For example,
+    # if leading_command_arguments is
+    #
+    # c("/usr/lib/R/bin/exec/R", "--file=path/to/script.R", "--slave", "--no-restore", "--args")
+    #
+    # ...then paths_and_empties will be
+    #
+    # c("", "path/to/script.R", "", "", "")
+
+    paths_and_empties <- gsub("^(?:--file=(.*)|.*)$", "\\1",
+                                 leading_command_arguments)
+
+    paths_and_empties[paths_and_empties != ""]
+
+  })
+
+  # if multiple --file arguments are given, R uses the last one
+  tail(paths, 1)
+}
+
+## ----------------------------------------------------------------------------
+
+warn <- function (...) cat(sprintf(...), file = stderr())
+
+die <- function (status = 1, ...) {
+  warn(...)
+  ## FIXME: use exit
+  ## exit(1)
+  quit(save = "no", status = status)
+}
+
+exit <- function (status) quit(save = "no", status = status)
+
+## ----------------------------------------------------------------------------
+
+make_usage <- function (template, name) {
+  noname <- missing(name)
+  function (status = 1) {
+    this <- if (noname) path_to_script() else name
+    warn(sprintf("Usage:\n%s\n", gsub('%s', this, template)))
+    exit(status)
+  }
+}
+
+get_arguments <- function (argument_names, usage, exact = TRUE) {
+
+  received_arguments <- as.list(commandArgs(trailingOnly = TRUE))
+
+  number_received <- length(received_arguments)
+  number_expected <- length(argument_names)
+  number_missing <- number_expected - number_received
+
+  if ((exact && number_missing != 0) ||
+                number_missing  < 0) {
+    usage(ifelse(number_of_received_arguments == 0, 0, 1))
+  }
+
+  setNames(c(as.list(received_arguments), as.list(rep(NA, number_missing))),
+           argument_names)
+
+}
+
+## ----------------------------------------------------------------------------
+
+is_empty <- function (set) length(set) == 0
+
+## FIXME: is_subset should use is_empty
+## is_subset <- function (set, otherset) is_empty(setdiff(set, otherset))
+is_subset <- function (set, otherset) length(setdiff(set, otherset)) == 0
+
+## FIXME: is_superset should use is_subset
+## is_superset <- function (set, otherset) is_subset(otherset, set)
+is_superset <- function (set, otherset) length(setdiff(otherset, set)) == 0
+
+## ----------------------------------------------------------------------------
+
+as_boolean <- function (anything) {
+  string_value <- suppressWarnings(as.character(anything))
+  if (identical(string_value, "")) return(FALSE)
+
+  numeric_value <- suppressWarnings(as.numeric(as.logical(anything)))
+  if (identical(numeric_value, 0)) FALSE else TRUE
+}
+
+## ----------------------------------------------------------------------------
