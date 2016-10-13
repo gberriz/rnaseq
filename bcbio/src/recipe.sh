@@ -15,13 +15,15 @@ export PATH=/opt/bcbio/centos/bin:$PATH
 # -----------------------------------------------------------------------------
 # definitions
 
-BASEDIR=$PWD
+BASEDIR=PLACEHOLDER__REPLACE_WITH_THE_APPROPRIATE_BASE_DIRECTORY
+PROJECTNAME=PLACEHOLDER__REPLACE_WITH_THE_APPROPRIATE_PROJECT_NAME
+
+# .............................................................................
 
 INPUTDIR=$BASEDIR/input
 OUTPUTDIR=$BASEDIR/output
 MERGEDDIR=$OUTPUTDIR/merged
 
-PROJECTNAME=PLACEHOLDER__REPLACE_WITH_THE_APPROPRIATE_PROJECT_NAME
 MERGESPEC=merge_spec
 
 # -----------------------------------------------------------------------------
