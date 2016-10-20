@@ -233,7 +233,7 @@ save_plot_png <- function (xx, yy, output_file) {
   dev.off()
 }
 
-run <- function (inputdir, user_settings, plotsdir) {
+run <- function (inputdir, user_settings, resultsdir) {
 
   expected_fold_changes_dir <- file.path(inputdir, "expected_fold_changes")
 
@@ -270,7 +270,7 @@ run <- function (inputdir, user_settings, plotsdir) {
       results_for_contrast <- results[[contrast_name]]
       y <- 2**results_for_contrast[, fold_change_column]
       x <- expected_fold_changes[[condition]][row.names(results_for_contrast), ]
-      output_file <- file.path(plotsdir, method, "simulation", condition, "plot.png")
+      output_file <- file.path(resultsdir, method, "simulation", condition, "plot.png")
       save_plot_png(x, y, output_file)
     }
 
@@ -318,9 +318,8 @@ main <- function () {
              },
              simplify = FALSE)
 
-    plotsdir <- file.path(inputdir, "results")
-
-    run(inputdir, user_settings, plotsdir)
+    resultsdir <- file.path(inputdir, "results")
+    run(inputdir, user_settings, resultsdir)
   }
 
 }
