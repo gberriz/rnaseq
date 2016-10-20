@@ -243,11 +243,18 @@ run <- function (inputdir, user_settings, plotsdir) {
   methods <- c("deseq2", "edger")
 
   output <-
-    mapply(function (sartools_function, settings, method) {
+    mapply(function (sartools_runner, settings, method) {
              cat(method, '\n')
-             sink("/dev/null");
-             on.exit(sink());
-             suppressWarnings(suppressMessages(sartools_function(settings)))
+
+             if (SETTINGS$VERBOSE) {
+               sartools_runner(settings)
+             }
+             else {
+               sink("/dev/null");
+               on.exit(sink());
+               suppressWarnings(suppressMessages(sartools_runner(settings)))
+             }
+
            },
            run_sartools,
            user_settings,
@@ -317,5 +324,7 @@ main <- function () {
   }
 
 }
+
+SETTINGS$VERBOSE <- TRUE
 
 main()
