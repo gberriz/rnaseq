@@ -3,6 +3,14 @@ import("misc")
 import("common")
 
 ## ----------------------------------------------------------------------------
+
+SETTINGS <- list(placeholder = NULL
+
+  , VERBOSE = misc$as_boolean(Sys.getenv("VERBOSE"))
+  , METHODS = c("deseq2", "edger")
+)
+
+## ----------------------------------------------------------------------------
 PARAMETER_DEFAULTS <- list(
 
   common = local({
