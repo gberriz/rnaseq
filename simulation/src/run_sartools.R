@@ -139,7 +139,7 @@ run_sartools <- list(
                        independentFiltering=independentFiltering, alpha=alpha, pAdjustMethod=pAdjustMethod,
                        typeTrans=typeTrans, locfunc=locfunc, colors=colors)
 
-    out.DESeq2
+    sapply(out.DESeq2$results, as.data.frame, simplify = FALSE)
   },
 
   edger = function (user_settings) {
@@ -200,9 +200,18 @@ run_sartools <- list(
                       condRef=condRef, batch=batch, alpha=alpha, pAdjustMethod=pAdjustMethod, colors=colors,
                       gene.selection=gene.selection, normalizationMethod=normalizationMethod)
 
-    out.edgeR
+    out.edgeR$results
   }
 )
+
+dump_results <- function (results, outputdir) {
+  dir.create(outputdir,
+             showWarnings = FALSE,
+             recursive = TRUE,
+             mode = "0775")
+
+  write(yaml::as.yaml(results), file.path(outputdir, "content.yaml"))
+}
 
 ## save_scatterplot_png <- function (x, y, output_file) {
 ##   misc$mkdir_for(output_file)
@@ -258,7 +267,8 @@ run <- function (inputdir, user_settings, resultsdir) {
            },
            run_sartools,
            user_settings,
-           methods)
+           methods,
+           SIMPLIFY = FALSE)
 
   ## --------------------------------------------------------------------------
 
@@ -280,7 +290,9 @@ run <- function (inputdir, user_settings, resultsdir) {
                         edger = "logFC")
 
   for (method in methods) {
-    do_plots(method, output[[method]]$results, wanted_column[[method]])
+    do_plots(method, output[[method]], wanted_column[[method]])
+    dump_results(output[[method]],
+                 file.path(resultsdir, method, "sartools", "dump"));
   }
 
 }
