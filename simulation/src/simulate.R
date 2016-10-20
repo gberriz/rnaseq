@@ -250,7 +250,7 @@ save_counts_per_sample <- function (counts, directory, metadata) {
                       USE.NAMES = FALSE
                     ),
 
-      group = metadata$condition
+      condition = metadata$condition
     )
 
     cbind(base,

@@ -50,6 +50,8 @@ rawDir: $rawdir
 ## - not_aligned
 ## - too_low_aQual
 ## varInt: group
+varInt: condition
+
 ## condRef: WT
 condRef: U
 
